@@ -8,7 +8,10 @@ use cryptsetup_rs::{CryptDevice, Luks1CryptDevice};
 use libcryptsetup_sys::crypt_keyslot_info;
 use structopt::StructOpt;
 
+use failure::_core::fmt::{Error, Formatter};
+use failure::_core::str::FromStr;
 use std::io::Write;
+use std::path::Display;
 use std::process::exit;
 
 pub fn add_key_to_luks(
@@ -70,6 +73,23 @@ pub fn add_password_to_luks(
     Ok(slot)
 }
 
+#[derive(Debug, Eq, PartialEq, Clone)]
+pub struct HexEncoded(Vec<u8>);
+
+impl std::fmt::Display for HexEncoded {
+    fn fmt(&self, f: &mut Formatter<'_>) -> Result<(), Error> {
+        f.write_str(&hex::encode(&self.0))
+    }
+}
+
+impl FromStr for HexEncoded {
+    type Err = hex::FromHexError;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        Ok(HexEncoded(hex::decode(s)?))
+    }
+}
+
 #[derive(Debug, StructOpt)]
 pub struct Args {
     /// Request passwords via Stdin instead of using the password helper
@@ -83,7 +103,7 @@ pub struct Args {
 pub struct SecretGeneration {
     /// FIDO credential id, generate using fido2luks credential
     #[structopt(name = "credential-id", env = "FIDO2LUKS_CREDENTIAL_ID")]
-    pub credential_id: String,
+    pub credential_id: HexEncoded,
     /// Salt for secret generation, defaults to 'ask'
     ///
     /// Options:{n}
@@ -118,7 +138,7 @@ impl SecretGeneration {
     pub fn obtain_secret(&self) -> Fido2LuksResult<[u8; 32]> {
         let salt = self.salt.obtain(&self.password_helper)?;
         Ok(assemble_secret(
-            &perform_challenge(&self.credential_id, &salt)?,
+            &perform_challenge(&self.credential_id.0, &salt)?,
             &salt,
         ))
     }
@@ -142,7 +162,7 @@ pub enum Command {
         /// Will wipe all other keys
         #[structopt(short = "e", long = "exclusive")]
         exclusive: bool,
-        /// Use a keyfile instead of a password
+        /// Use a keyfile instead of typing a previous password
         #[structopt(short = "d", long = "keyfile")]
         keyfile: Option<PathBuf>,
         #[structopt(flatten)]
@@ -157,7 +177,7 @@ pub enum Command {
         /// Add the password and keep the key
         #[structopt(short = "a", long = "add-password")]
         add_password: bool,
-        /// Use a keyfile instead of a password
+        /// Use a keyfile instead of typing a previous password
         #[structopt(short = "d", long = "keyfile")]
         keyfile: Option<PathBuf>,
         #[structopt(flatten)]
