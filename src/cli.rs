@@ -129,13 +129,13 @@ pub struct SecretGeneration {
     )]
     pub password_helper: PasswordHelper,
 
-    /// Await for an authenticator to be connected, timeout after x seconds
+    /// Await for an authenticator to be connected, timeout after n seconds
     #[structopt(
         long = "await-dev",
-        name = "await-device",
+        name = "await-seconds",
         env = "FIDO2LUKS_DEVICE_AWAIT"
     )]
-    pub await_authenicator: Option<u64>,
+    pub await_authenticator: Option<u64>,
 }
 
 impl SecretGeneration {
@@ -149,7 +149,7 @@ impl SecretGeneration {
 
     pub fn obtain_secret(&self) -> Fido2LuksResult<[u8; 32]> {
         let salt = self.salt.obtain(&self.password_helper)?;
-        if let Some(timeout) = self.await_authenicator.map(Duration::from_secs) {
+        if let Some(timeout) = self.await_authenticator.map(Duration::from_secs) {
             let start = SystemTime::now();
             while start
                 .elapsed()
