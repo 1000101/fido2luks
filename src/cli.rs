@@ -10,10 +10,14 @@ use structopt::StructOpt;
 
 use failure::_core::fmt::{Error, Formatter};
 use failure::_core::str::FromStr;
+use failure::_core::time::Duration;
 use std::io::Write;
-use std::path::Display;
-use std::process::exit;
 
+use std::io::stdout;
+use std::process::exit;
+use std::thread;
+
+use std::time::SystemTime;
 pub fn add_key_to_luks(
     device: PathBuf,
     secret: &[u8; 32],
@@ -124,6 +128,14 @@ pub struct SecretGeneration {
         default_value = "/usr/bin/env systemd-ask-password 'Please enter second factor for LUKS disk encryption!'"
     )]
     pub password_helper: PasswordHelper,
+
+    /// Await for an authenticator to be connected, timeout after x seconds
+    #[structopt(
+        long = "await-dev",
+        name = "await-device",
+        env = "FIDO2LUKS_DEVICE_AWAIT"
+    )]
+    pub await_authenicator: Option<u64>,
 }
 
 impl SecretGeneration {
@@ -137,6 +149,18 @@ impl SecretGeneration {
 
     pub fn obtain_secret(&self) -> Fido2LuksResult<[u8; 32]> {
         let salt = self.salt.obtain(&self.password_helper)?;
+        if let Some(timeout) = self.await_authenicator.map(Duration::from_secs) {
+            let start = SystemTime::now();
+            while start
+                .elapsed()
+                .map(|el| el < timeout)
+                .ok()
+                .and_then(|el| get_devices().map(|devs| el && devs.is_empty()).ok())
+                .unwrap_or(false)
+            {
+                thread::sleep(Duration::from_millis(500));
+            }
+        }
         Ok(assemble_secret(
             &perform_challenge(&self.credential_id.0, &salt)?,
             &salt,
@@ -168,7 +192,6 @@ pub enum Command {
         #[structopt(flatten)]
         secret_gen: SecretGeneration,
     },
-
     /// Replace a previously added key with a password
     #[structopt(name = "replace-key")]
     ReplaceKey {

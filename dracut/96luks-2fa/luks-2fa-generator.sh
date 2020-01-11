@@ -36,9 +36,9 @@ generate_service () {
                 printf -- "\nEnvironment=FIDO2LUKS_CREDENTIAL_ID='%s'" "$credential_id"
                 printf -- "\nKeyringMode=%s" "shared"
 		            printf -- "\nExecStartPre=-/usr/bin/plymouth display-message --text \"${CON_MSG}\""
-		            printf -- "\nExecStartPre=-/bin/bash -c \"while ! ${FIDO2LUKS} connected; do /usr/bin/sleep 1; done\""
-		            printf -- "\nExecStartPre=-/usr/bin/plymouth hide-message --text \"${CON_MSG}\""
-                printf -- "\nExecStart=/bin/bash -c \"${FIDO2LUKS} print-secret --bin | ${CRYPTSETUP} attach 'luks-%s' '/dev/disk/by-uuid/%s' '/dev/stdin'\"" "$target_uuid" "$target_uuid"
+		            #printf -- "\nExecStartPre=-/bin/bash -c \"while ! ${FIDO2LUKS} connected; do /usr/bin/sleep 1; done\""
+		            #printf -- "\nExecStartPre=-/usr/bin/plymouth hide-message --text \"${CON_MSG}\""
+                printf -- "\nExecStart=/bin/bash -c \"${FIDO2LUKS} print-secret --await-dev ${timeout} --bin | ${CRYPTSETUP} attach 'luks-%s' '/dev/disk/by-uuid/%s' '/dev/stdin'\"" "$target_uuid" "$target_uuid"
                 printf -- "\nExecStop=${CRYPTSETUP} detach 'luks-%s'" "$target_uuid"
         } > "$sd_service"
 
