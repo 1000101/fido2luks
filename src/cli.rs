@@ -130,11 +130,7 @@ pub struct SecretGeneration {
     pub password_helper: PasswordHelper,
 
     /// Await for an authenticator to be connected, timeout after n seconds
-    #[structopt(
-        long = "await-dev",
-        name = "await-seconds",
-        env = "FIDO2LUKS_DEVICE_AWAIT"
-    )]
+    #[structopt(long = "await-dev", name = "await-dev", env = "FIDO2LUKS_DEVICE_AWAIT")]
     pub await_authenticator: Option<u64>,
 }
 
